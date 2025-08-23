@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import './App.css'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
@@ -32,6 +32,10 @@ type FormValues = z.infer<typeof formSchema>
 function App() {
   const [submitted, setSubmitted] = useState<null | FormValues>(null)
   const [copied, setCopied] = useState(false)
+  const [promptTimerStarted, setPromptTimerStarted] = useState(false)
+  const [promptSecondsLeft, setPromptSecondsLeft] = useState(60)
+  const [promptLocked, setPromptLocked] = useState(false)
+  const promptTimerRef = useRef<number | null>(null)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -43,6 +47,38 @@ function App() {
     },
     mode: 'onBlur',
   })
+
+  const promptValue = form.watch('prompt')
+
+  useEffect(() => {
+    if (!promptTimerStarted && !promptLocked) {
+      const length = (promptValue || '').trim().length
+      if (length > 10) {
+        setPromptTimerStarted(true)
+        setPromptSecondsLeft(60)
+        if (promptTimerRef.current) {
+          clearInterval(promptTimerRef.current)
+        }
+        promptTimerRef.current = window.setInterval(() => {
+          setPromptSecondsLeft((prev) => {
+            if (prev <= 1) {
+              if (promptTimerRef.current) clearInterval(promptTimerRef.current)
+              promptTimerRef.current = null
+              setPromptLocked(true)
+              return 0
+            }
+            return prev - 1
+          })
+        }, 1000)
+      }
+    }
+  }, [promptValue, promptTimerStarted, promptLocked])
+
+  useEffect(() => {
+    return () => {
+      if (promptTimerRef.current) clearInterval(promptTimerRef.current)
+    }
+  }, [])
 
   const onSubmit = async (values: FormValues) => {
     try {
@@ -130,9 +166,17 @@ function App() {
               name="prompt"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>AI Prompt for the Competition</FormLabel>
+                  <div className="flex items-center justify-between">
+                    <FormLabel>AI Prompt for the Competition</FormLabel>
+                    <span className="text-xs font-medium text-red-400">
+                      {promptTimerStarted || promptLocked
+                        ? `${Math.floor(promptSecondsLeft / 60)}:${String(promptSecondsLeft % 60).padStart(2, '0')}`
+                        : '1:00'}
+                    </span>
+                  </div>
+                  <FormDescription className="text-white/70">You have 1 minute to write your prompt.</FormDescription>
                   <FormControl>
-                    <Textarea placeholder="Enter your prompt here" rows={5} {...field} />
+                    <Textarea placeholder="Enter your prompt here" rows={5} disabled={promptLocked} {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -182,6 +226,11 @@ function App() {
                     form.reset()
                     setSubmitted(null)
                     form.setFocus('name')
+                    if (promptTimerRef.current) clearInterval(promptTimerRef.current)
+                    promptTimerRef.current = null
+                    setPromptTimerStarted(false)
+                    setPromptSecondsLeft(60)
+                    setPromptLocked(false)
                   }}
                 >
                   Reset Form
