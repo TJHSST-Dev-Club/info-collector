@@ -256,68 +256,55 @@ function App() {
           </Form>
 
           {submitted ? (
-            <div className="mt-6">
-              <div className="text-sm mb-2 text-white/70">
-                Copy your submitted prompt for bolt.diy
-              </div>
-              <div className="rounded-md border border-white/10 bg-white/5">
-                <div
-                  className="p-3 text-sm whitespace-pre-wrap break-words select-text"
-                  id="submitted-prompt"
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={async () => {
+                  form.reset();
+                  setSubmitted(null);
+                  form.setFocus("name");
+                  if (promptTimerRef.current)
+                    clearInterval(promptTimerRef.current);
+                  promptTimerRef.current = null;
+                  setPromptTimerStarted(false);
+                  setPromptSecondsLeft(60);
+                  setPromptLocked(false);
+                }}
+              >
+                Reset Form
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={async () => {
+                  window.open(
+                    "https://bolt.readme.sh/git?url=https://github.com/makors/vite-shadcn.git&prompt=" +
+                      encodeURIComponent(submitted.prompt),
+                    "_blank"
+                  );
+                }}
+              >
+                Open in bolt.diy
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-4 w-4 align-middle"
+                  width="16"
+                  height="16"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  focusable="false"
                 >
-                  {submitted.prompt}
-                </div>
-                <div className="border-t border-white/10 p-2 flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => {
-                      form.reset();
-                      setSubmitted(null);
-                      form.setFocus("name");
-                      if (promptTimerRef.current)
-                        clearInterval(promptTimerRef.current);
-                      promptTimerRef.current = null;
-                      setPromptTimerStarted(false);
-                      setPromptSecondsLeft(60);
-                      setPromptLocked(false);
-                    }}
-                  >
-                    Reset Form
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={async () => {
-                      window.open(
-                        "https://bolt.readme.sh/git?url=https://github.com/xKevIsDev/vite-shadcn.git&prompt=" +
-                          encodeURIComponent(submitted.prompt),
-                        "_blank"
-                      );
-                    }}
-                  >
-                    Open in bolt.diy
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      className="h-4 w-4 align-middle"
-                      width="16"
-                      height="16"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path
-                        d="M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </Button>
-                </div>
-              </div>
+                  <path
+                    d="M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </Button>
             </div>
           ) : null}
         </div>
