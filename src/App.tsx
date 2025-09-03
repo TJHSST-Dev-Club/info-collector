@@ -280,7 +280,7 @@ function App() {
                 onClick={async () => {
                   window.open(
                     "https://bolt.readme.sh/git?url=https://github.com/makors/vite-shadcn.git&prompt=" +
-                      encodeURIComponent(submitted.prompt),
+                      encodeURIComponent("For the following website, assume that Tailwind CSS, Vite, and Shadcn are all properly installed. DO NOT INSTALL ANYTHING ELSE. Stick to a one page application.\n " + submitted.prompt),
                     "_blank"
                   );
                 }}
