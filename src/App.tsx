@@ -1,326 +1,124 @@
-import { useEffect, useRef, useState } from "react";
-import "./App.css";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useState } from "react";
 import confetti from "canvas-confetti";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import "./App.css";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 const formSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Enter a valid email"),
-  prompt: z.string().min(1, "Prompt is required"),
-  allowEmail: z.boolean().refine((v) => v === true, {
-    message: "You must allow email to participate",
-  }),
+  name: z.string().trim().min(1, "Name is required"),
+  email: z.string().trim().email("Enter a valid email"),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 function App() {
-  const [submitted, setSubmitted] = useState<null | FormValues>(null);
-  const [copied, setCopied] = useState(false);
-  const [promptTimerStarted, setPromptTimerStarted] = useState(false);
-  const [promptSecondsLeft, setPromptSecondsLeft] = useState(60);
-  const [promptLocked, setPromptLocked] = useState(false);
-  const promptTimerRef = useRef<number | null>(null);
-
+  const [submitted, setSubmitted] = useState(false);
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      prompt: "",
-      allowEmail: true,
-    },
-    mode: "onBlur",
+    defaultValues: { name: "", email: "" },
+    mode: "onSubmit",
+    reValidateMode: "onSubmit",
   });
 
-  const promptValue = form.watch("prompt");
-
   useEffect(() => {
-    if (!promptTimerStarted && !promptLocked) {
-      const length = (promptValue || "").trim().length;
-      if (length > 0) {
-        setPromptTimerStarted(true);
-        setPromptSecondsLeft(60);
-        if (promptTimerRef.current) {
-          clearInterval(promptTimerRef.current);
-        }
-        promptTimerRef.current = window.setInterval(() => {
-          setPromptSecondsLeft((prev) => {
-            if (prev <= 1) {
-              if (promptTimerRef.current) clearInterval(promptTimerRef.current);
-              promptTimerRef.current = null;
-              setPromptLocked(true);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-      }
-    }
-  }, [promptValue, promptTimerStarted, promptLocked]);
-
-  useEffect(() => {
-    return () => {
-      if (promptTimerRef.current) clearInterval(promptTimerRef.current);
-    };
-  }, []);
+    if (!submitted) return;
+    const timeout = window.setTimeout(() => {
+      form.reset();
+      setSubmitted(false);
+      window.requestAnimationFrame(() => {
+        form.setFocus("name");
+      });
+    }, 2500);
+    return () => window.clearTimeout(timeout);
+  }, [submitted, form]);
 
   const onSubmit = async (values: FormValues) => {
+    setSubmitted(false);
     try {
-      await fetch("http://localhost:8787/submit", {
+      const response = await fetch("http://localhost:8787/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      // Best-effort; we still show local success UX regardless
-    } catch (_) {
-      // ignore network errors for local-only flow
+      if (!response.ok) throw new Error("Submission failed");
+      setSubmitted(true);
+      confetti({
+        particleCount: 140,
+        spread: 80,
+        origin: { y: 0.72 },
+        colors: ["#5ac1ea", "#7779dc", "#eaecf4"],
+        disableForReducedMotion: true,
+      });
+    } catch {
+      form.setError("root", { message: "We couldn’t save your information. Please try again." });
     }
-    setSubmitted(values);
-    confetti({ particleCount: 180, spread: 70, origin: { y: 0.6 } });
   };
 
-  useEffect(() => {
-    if (copied) {
-      const id = setTimeout(() => setCopied(false), 1200);
-      return () => clearTimeout(id);
-    }
-  }, [copied]);
-
   return (
-    <div className="dark min-h-screen flex flex-col bg-gray-900 text-white font-['Inter']">
-      <header className="z-50 bg-white/5 backdrop-blur-xl border-b border-white/10 shadow-lg">
-        <div className="max-w-screen-xl mx-auto flex items-center justify-between px-6 py-4">
-          <div className="flex items-center">
-            <img
-              src="/logo.svg"
-              alt="logo"
-              className="h-12 w-auto transition-transform hover:scale-105"
-            />
-            <h1 className="text-2xl font-bold pl-2">TJHSST Dev Club</h1>
-          </div>
-          <nav className="hidden md:flex items-center space-x-8">
-            <a
-              href="https://ion.tjhsst.edu/eighth/activity/12"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="relative text-white hover:text-white transition-colors duration-200 font-bold group flex items-center gap-1"
-            >
-              Sign up
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
-                />
-              </svg>
-              <span className="absolute bottom-0 left-0 w-0 h-px bg-white/60 group-hover:w-full transition-all duration-200 ease-out"></span>
-            </a>
-          </nav>
+    <div className="dark flex min-h-screen flex-col bg-ink text-fog">
+      <header className="border-b border-border bg-ink/80 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-between px-6 py-4">
+          <a href="https://tjdev.club" className="flex items-center gap-3">
+            <img src="/logo.svg" alt="" className="h-10 w-auto" />
+            <span className="text-[19px] font-semibold tracking-tight">TJ Dev Club</span>
+          </a>
+          <a href="https://tjdev.club" className="inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm text-mist transition-colors hover:text-fog">
+            tjdev.club
+          </a>
         </div>
       </header>
-      <main className="flex-1">
-        <div className="max-w-2xl mx-auto px-6 py-10">
-          <h2 className="text-3xl font-bold mb-2">
-            Activity Fair Competition Signup
-          </h2>
-          <p className="text-white/70 mb-6">
-            Fill out the form below to participate.
-          </p>
 
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="space-y-5 rounded-xl bg-white/5 border border-white/10 p-6 backdrop-blur-sm shadow-lg"
-            >
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Your name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+      <main className="relative flex flex-1 items-center overflow-hidden">
+        <div className="ambient-glow" aria-hidden="true" />
+        <div className="relative mx-auto w-full max-w-xl px-6 py-16 sm:py-24">
+          <section className="text-center">
+            <h1 className="font-display bg-clip-text text-4xl font-semibold tracking-[-0.03em] text-balance text-transparent [background-image:linear-gradient(to_bottom,#fff_62%,rgba(234,236,244,0.62))] sm:text-5xl">
+              Join TJ Dev Club.
+            </h1>
+            <p className="mx-auto mt-4 max-w-md text-[16px] leading-relaxed text-mist">
+              Leave your name and email to stay updated.
+            </p>
+          </section>
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Personal email or <ionusername>@tjhsst.edu"
-                        type="email"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="prompt"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center justify-between">
-                      <FormLabel>AI Prompt for the Competition</FormLabel>
-                      <span className="text-xs font-medium text-red-400">
-                        {promptTimerStarted || promptLocked
-                          ? `${Math.floor(promptSecondsLeft / 60)}:${String(
-                              promptSecondsLeft % 60
-                            ).padStart(2, "0")}`
-                          : "1:00"}
-                      </span>
-                    </div>
-                    <FormDescription className="text-white/70">
-                      You have 1 minute to write your prompt.
-                    </FormDescription>
-                    <FormControl>
-                      <Textarea
-                        placeholder="Enter your prompt here"
-                        rows={5}
-                        disabled={promptLocked}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="allowEmail"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-start gap-3 rounded-md border border-white/10 p-3">
-                    <FormControl>
-                      <Checkbox
-                        checked={field.value}
-                        onCheckedChange={(v) => field.onChange(Boolean(v))}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel className="text-white">
-                        Allow us to email you about the competition (required)
-                      </FormLabel>
-                      <FormDescription className="text-white/70">
-                        You must opt-in so we can contact you for rounds and
-                        results.
-                      </FormDescription>
-                      <FormMessage />
-                    </div>
-                  </FormItem>
-                )}
-              />
-
-              <div className="flex items-center gap-3">
-                <Button type="submit" className="">
-                  Submit
-                </Button>
-                {submitted ? (
-                  <span className="text-green-300">
-                    Thank you! 🎉 Submission received.
-                  </span>
-                ) : null}
-              </div>
-            </form>
-          </Form>
-
-          {submitted ? (
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={async () => {
-                  form.reset();
-                  setSubmitted(null);
-                  form.setFocus("name");
-                  if (promptTimerRef.current)
-                    clearInterval(promptTimerRef.current);
-                  promptTimerRef.current = null;
-                  setPromptTimerStarted(false);
-                  setPromptSecondsLeft(60);
-                  setPromptLocked(false);
-                }}
-              >
-                Reset Form
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={async () => {
-                  window.open(
-                    "https://bolt.readme.sh/git?url=https://github.com/makors/vite-shadcn.git&prompt=" +
-                      encodeURIComponent("For the following website, assume that Tailwind CSS, Vite, and Shadcn are all properly installed. DO NOT INSTALL ANYTHING ELSE. Stick to a one page application.\n " + submitted.prompt),
-                    "_blank"
-                  );
-                }}
-              >
-                Open in bolt.diy
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 align-middle"
-                  width="16"
-                  height="16"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  focusable="false"
-                >
-                  <path
-                    d="M10 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4M14 4h6m0 0v6m0-6L10 14"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </Button>
-            </div>
-          ) : null}
+          <section aria-label="Join form" className="mx-auto mt-10 w-full max-w-md">
+            <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
+                      <FormField control={form.control} name="name" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Name</FormLabel>
+                          <FormControl><Input placeholder="Your name" autoComplete="name" className="h-11 rounded-lg border-border bg-ink/55 px-4 text-fog placeholder:text-mist/45 focus-visible:border-brand/50" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="email" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email</FormLabel>
+                          <FormControl><Input placeholder="you@example.com" type="email" autoComplete="email" className="h-11 rounded-lg border-border bg-ink/55 px-4 text-fog placeholder:text-mist/45 focus-visible:border-brand/50" {...field} /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      {form.formState.errors.root ? <p className="text-sm text-red-300" role="alert">{form.formState.errors.root.message}</p> : null}
+                      <Button type="submit" disabled={form.formState.isSubmitting || submitted} className="h-11 w-full rounded-full bg-fog px-6 text-ink hover:bg-white">
+                        {form.formState.isSubmitting ? "Joining…" : submitted ? "Added" : "Join the list"}
+                      </Button>
+                      {submitted ? (
+                        <p className="text-center text-sm text-brand" role="status">
+                          You’re on the list. Thanks for joining us!
+                        </p>
+                      ) : null}
+                    </form>
+            </Form>
+          </section>
         </div>
       </main>
-      <footer className="bg-gray-900/40 border-t border-white/10">
-        <div className="max-w-screen-xl mx-auto px-6 py-8 lg:px-8">
-          <div className="flex items-center">
-            <img
-              src="/logo.svg"
-              alt="TJHSST Dev Club"
-              className="h-10 w-auto"
-            />
-            <span className="ml-3 text-sm text-gray-400">
-              &copy; {new Date().getFullYear()} TJHSST Dev Club
-            </span>
-          </div>
+
+      <footer className="border-t border-border">
+        <div className="mx-auto flex w-full max-w-5xl items-center justify-center px-6 py-6 text-xs text-mist/60">
+          <span>&copy; {new Date().getFullYear()} TJ Dev Club</span>
         </div>
       </footer>
     </div>

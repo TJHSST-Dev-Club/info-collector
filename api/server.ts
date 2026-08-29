@@ -7,8 +7,6 @@ import { spawn } from "child_process";
 type Submission = {
   name: string;
   email: string;
-  prompt: string;
-  allowEmail: boolean;
 };
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -129,8 +127,7 @@ async function ensureHeader() {
   try {
     await fs.access(CSV_PATH, fsConstants.F_OK);
   } catch {
-    const header =
-      ["timestamp", "name", "email", "prompt", "allowEmail"].join(",") + "\n";
+    const header = ["timestamp", "name", "email"].join(",") + "\n";
     await fs.writeFile(CSV_PATH, header, "utf8");
   }
 }
@@ -143,8 +140,6 @@ async function appendSubmission(data: Submission) {
       timestamp,
       toCsvValue(data.name),
       toCsvValue(data.email),
-      toCsvValue(data.prompt),
-      String(Boolean(data.allowEmail)),
     ].join(",") + "\n";
   await fs.appendFile(CSV_PATH, row, "utf8");
   lastSubmitterEmail = data.email;
@@ -188,9 +183,7 @@ const server = Bun.serve({
         if (
           !json ||
           typeof json.name !== "string" ||
-          typeof json.email !== "string" ||
-          typeof json.prompt !== "string" ||
-          json.allowEmail !== true
+          typeof json.email !== "string"
         ) {
           return new Response(
             JSON.stringify({ ok: false, error: "Invalid payload" }),
@@ -207,12 +200,7 @@ const server = Bun.serve({
         await appendSubmission({
           name: json.name.trim(),
           email: json.email.trim(),
-          prompt: json.prompt,
-          allowEmail: true,
         });
-
-        // Start watching Downloads for .zip files after the first successful submission
-        void watchDownloadsForZips();
 
         return new Response(JSON.stringify({ ok: true }), {
           headers: {
