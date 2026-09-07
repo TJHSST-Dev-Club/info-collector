@@ -30,7 +30,6 @@ trap cleanup EXIT INT TERM
 echo "Starting Vite dev server with bun..."
 (
   cd "$SCRIPT_DIR"
-  bun run dev
+  bun run dev --host 0.0.0.0
 )
-
 
